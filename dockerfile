@@ -8,5 +8,10 @@ COPY requirements.txt .
 COPY app/ .
 
 RUN pip install --no-cache-dir -r requirements.txt
-#빌드 되는지 테스트 하는 용도
-CMD ["sleep", "infinity"]
+#연결 포트
+EXPOSE 8000
+# 서버 실행 , 현재 --noreload 안 쓰면 Watching for file changes with StatReloader 계속 뜨는데 이유를 모르겠음. 작동은함
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000", "--noreload"]
+
+# 디버깅용
+#CMD ["sleep", "infinity"]
