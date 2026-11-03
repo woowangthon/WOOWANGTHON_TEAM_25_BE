@@ -9,4 +9,4 @@ COPY app/ .
 
 RUN pip install --no-cache-dir -r requirements.txt
 #빌드 되는지 테스트 하는 용도
-CMD ["python", "test.py"]
+CMD ["sleep", "infinity"]
