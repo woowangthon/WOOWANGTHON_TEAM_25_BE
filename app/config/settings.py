@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 
     "rest_framework", #REST 쓰면 편하게 데이터 주고받는다는데 처음써봄
+    "scan", #json 받고 다른 앱에 전송
     "tax_verification",#국세청 api 관리 및 조회
     "reports", # 최종 결과 보고서
 ]
@@ -128,5 +129,34 @@ STATIC_URL = 'static/'
 MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    },
+}
+#디버깅용 log 추가
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": (
+                "[{asctime}] {levelname} "
+                "{name}: {message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "scan": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
