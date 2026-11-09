@@ -28,7 +28,8 @@ class ScanAPIView(APIView):
             #     )
 
         result = run_scan(
-            url=serializer.validated_data["url"]
+            url=serializer.validated_data["url"],
+            business_info=serializer.validated_data.get("business_info", {})
         )
             # logger.info(
             #     "SCAN COMPLETED: scan_id=%s",

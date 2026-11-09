@@ -41,8 +41,6 @@ INSTALLED_APPS = [
 
     "rest_framework", #REST 쓰면 편하게 데이터 주고받는다는데 처음써봄
     "scan", #json 받고 다른 앱에 전송
-    "tax_verification",#국세청 api 관리 및 조회
-    "reports", # 최종 결과 보고서
 ]
 
 MIDDLEWARE = [

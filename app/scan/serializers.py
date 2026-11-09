@@ -2,11 +2,31 @@ from urllib.parse import urlsplit
 
 from rest_framework import serializers
 
+class BusinessInfoSerializer(serializers.Serializer):
+    business_name = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True
+    )
+    representative_name = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True
+    )
+    business_number = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True
+    )
 
 class ScanRequestSerializer(serializers.Serializer):
     url = serializers.URLField(
         required=True,
         max_length=2048,
+    )
+    business_info = BusinessInfoSerializer(
+        required=False,
+        default=dict
     )
 
     def validate_url(self, value):
