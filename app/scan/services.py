@@ -12,7 +12,6 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
     """
     전체 URL 분석 프로세스를 실행한다.
     """
-    #logger.info("Starting scan process")
     business_info = business_info or {}
 
     parsed = urlsplit(url)
@@ -23,16 +22,10 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
         "status": "skipped",
         "business_status": None,
     }
-    #logger.debug("Parsed domain: %s", domain)
-    #scan_id = str(uuid4())
-
-        # logger.debug("Generated scan_id: %s", scan_id)
-        # logger.info("Scan process completed")
 
     if business_number:
         try:
             nts_result = lookup_business(business_number)
-
         except (NtsApiError, ValueError):
             nts_result = {
                 "status": "unavailable",

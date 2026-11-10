@@ -4,7 +4,7 @@ from .client import get_business_status
 def lookup_business(business_number: str) -> dict:
     raw_data = get_business_status(business_number)
 
-    status_code = raw_data.get("b_stt_cd", "")
+    status_code = raw_data.get("b_stt_cd")
 
     status_mapping = {
         "01": "ACTIVE",
@@ -14,14 +14,18 @@ def lookup_business(business_number: str) -> dict:
 
     business_status = status_mapping.get(
         status_code,
-        "NOT_REGISTERED"
+        "UNKNOWN"
     )
 
     return {
         "status": "completed",
         "business_number": raw_data.get("b_no"),
-        "business_status": business_status,
+        "business_status": status_mapping.get(
+            status_code, "UNKNOWN"
+        ),
+        "business_status_code": status_code,
         "business_status_description": raw_data.get("b_stt"),
         "tax_type": raw_data.get("tax_type"),
-        "closed_date": raw_data.get("end_dt"),
+        "tax_type_code": raw_data.get("tax_type_cd"),
+        "closed_date": raw_data.get("end_dt") or None,
     }
