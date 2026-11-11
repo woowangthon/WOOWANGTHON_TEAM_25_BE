@@ -41,9 +41,11 @@ INSTALLED_APPS = [
 
     "rest_framework", #REST 쓰면 편하게 데이터 주고받는다는데 처음써봄
     "scan", #json 받고 다른 앱에 전송
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,7 +54,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
+CORS_ALLOWED_ORIGINS = [
+    "chrome-extension://mknkofgjpfbknopphggfgapngpekcfmo",
+]
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -133,22 +137,14 @@ MAILERS = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-
-    "formatters": {
-        "verbose": {
-            "format": (
-                "[{asctime}] {levelname} "
-                "{name}: {message}"
-            ),
-            "style": "{",
-        },
-    },
-
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
         },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
     },
     "loggers": {
         "scan": {

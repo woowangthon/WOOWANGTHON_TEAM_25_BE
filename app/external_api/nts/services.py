@@ -1,9 +1,18 @@
 from .client import get_business_status
-
+import logging
+logger = logging.getLogger(__name__)
 
 def lookup_business(business_number: str) -> dict:
+    logger.warning(
+        "NTS BUSINESS NUMBER: %s",
+        business_number
+    )
+    
     raw_data = get_business_status(business_number)
-
+    logger.warning(
+        "NTS RAW RESULT: %s",
+        raw_data
+    )
     status_code = raw_data.get("b_stt_cd")
 
     status_mapping = {
