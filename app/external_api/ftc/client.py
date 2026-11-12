@@ -1,7 +1,8 @@
 import os
 import re
 import requests
-
+import logging
+logger = logging.getLogger(__name__)
 ftc_key = "72e6bf8caf7ff5cf174799cd81d6d35550c0101de8f4562d9665f609b18cddd2"
 
 BASE_URL = (
@@ -18,6 +19,7 @@ class FtcApiError(Exception):
 
 def _request(api_url: str, search_params: dict) -> list:
     #service_key = os.getenv("FTC_SERVICE_KEY")
+
     service_key = ftc_key
     if not service_key:
         raise FtcApiError("공정위 API 인증키가 설정되지 않았습니다.")
@@ -38,6 +40,13 @@ def _request(api_url: str, search_params: dict) -> list:
         )
         response.raise_for_status()
         result = response.json()
+        logger.warning(
+            "FTC SEARCH: total=%s, page=%s, rows=%s, returned=%s",
+            result.get("totalCount"),
+            result.get("pageNo"),
+            result.get("numOfRows"),
+            len(result.get("items", [])),
+        )
 
     except requests.RequestException as e:
         raise FtcApiError(f"공정위 API 요청 실패: {e}") from e
@@ -61,8 +70,13 @@ def _request(api_url: str, search_params: dict) -> list:
             f"공정위 API 오류: {result.get('resultMsg')}"
         )
 
-    return result.get("items", [])
+    logger.warning(
+    "FTC total=%s, returned=%s",
+    result.get("totalCount"),
+    len(result.get("items", [])),
+)
 
+    return result.get("items", [])
 
 def get_business_info(business_number: str) -> list:
     business_number = re.sub(r"\D", "", business_number)

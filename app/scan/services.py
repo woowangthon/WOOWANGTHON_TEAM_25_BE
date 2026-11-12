@@ -1,23 +1,31 @@
+
 from uuid import uuid4
 from urllib.parse import urlsplit
+import logging
+logger = logging.getLogger(__name__)
 
 from external_api.nts.client import NtsApiError
 from external_api.nts.services import lookup_business as lookup_nts
 from external_api.ftc.services import lookup_business as lookup_ftc
 
-import logging
-logger = logging.getLogger(__name__)
+
 
 def run_scan(url: str, business_info: dict | None = None) -> dict:
     """
     전체 URL 분석 프로세스를 실행한다.
     """
     business_info = business_info or {}
-    logger.debug("business_information : ", business_info, "\n")
-    parsed = urlsplit(url)
 
-    domain = parsed.hostname.lower()
+    parsed = urlsplit(url)
+    domain = (parsed.hostname or "").lower()
+
     business_number = business_info.get("business_number")
+
+    # 공백 문자열 방지
+    if isinstance(business_number, str):
+        business_number = business_number.strip()
+
+    # 1. NTS 조회
     nts_result = {
         "status": "skipped",
         "business_status": None,
@@ -25,36 +33,42 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
 
     if business_number:
         try:
-            logger.warning(
-                "NTS INPUT: %s",
-                business_info
-            )
 
             nts_result = lookup_nts(business_number)
 
-            logger.warning(
-                "NTS RESULT: %s",
-                nts_result
-            )
-        except (NtsApiError, ValueError):
+            #logger.debug("NTS lookup completed: %s", nts_result)
+
+        except NtsApiError as e:
+            logger.exception("NTS API error")
+
             nts_result = {
-                "status": "unavailable",
-                "business_status": None,
-            }
-    if business_info:
-        try:
-            ftc_result = lookup_ftc(business_info)
-        except Exception as e:
-            ftc_result = {
                 "status": "error",
-                "error": str(e),
+                "error": "NTS_API_SERVER_ERROR",
             }
-    else:
+
+        except ValueError:
+            nts_result = {
+                "status": "error",
+                "error": "INVALID_BUSINESS_NUMBER",
+            }
+
+    # 2. FTC 조회
+    # 사업자번호가 없어도 법인명이 있으면 조회 가능
+    try:
+        logger.debug("this is business_info %s", business_info)
+        ftc_result = lookup_ftc(business_info)
+
+        logger.debug("FTC lookup completed: %s", ftc_result)
+
+    except Exception:
+        logger.exception("FTC lookup failed")
+
         ftc_result = {
-            "status": "skipped",
-            "reason": "사업자등록번호가 제공되지 않았습니다.",
+            "status": "error",
+            "error": "FTC_API_ERROR",
         }
-    
+
+    # 3. 최종 응답
     reply = {
         "scan_id": str(uuid4()),
         "url": url,
@@ -63,18 +77,16 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
 
         "business_info": business_info,
 
-
         "risk_score": None,
         "verdict": "UNDETERMINED",
+
         "analyses": {
             "nts": nts_result,
-            "ftc": {
-                "status": ftc_result,
-            },
+            "ftc": ftc_result,
             "ai": {
                 "status": "not_configured",
             },
         },
     }
-    logger.debug(reply)
+
     return reply
