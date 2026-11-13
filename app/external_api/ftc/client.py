@@ -40,13 +40,6 @@ def _request(api_url: str, search_params: dict) -> list:
         )
         response.raise_for_status()
         result = response.json()
-        logger.warning(
-            "FTC SEARCH: total=%s, page=%s, rows=%s, returned=%s",
-            result.get("totalCount"),
-            result.get("pageNo"),
-            result.get("numOfRows"),
-            len(result.get("items", [])),
-        )
 
     except requests.RequestException as e:
         raise FtcApiError(f"공정위 API 요청 실패: {e}") from e

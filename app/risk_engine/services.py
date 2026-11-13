@@ -59,34 +59,35 @@ def _check_nts(nts_result, factors, checked_items):
 
 
 def _check_ftc(ftc_result, factors, checked_items):
-    """
-    공정거래위원회 검증 결과 확인
-    """
     if not isinstance(ftc_result, dict):
         return 0
 
     if ftc_result.get("status") != "completed":
         return 0
 
+    search_method = ftc_result.get("search_method")
     match_status = ftc_result.get("match_status")
 
-    # 검색은 성공했지만 일치하는 업체가 없는 경우
+    # 검색 결과가 없는 경우
     if match_status == "NO_MATCH":
-        checked_items.append("ftc_business_lookup")
+        # 사업자번호 검색 실패는 강한 위험 신호
+        if search_method == "BUSINESS_NUMBER":
+            checked_items.append("ftc_business_lookup")
 
-        factors.append({
-            "code": "FTC_NO_MATCH",
-            "name": "공정위 업체 조회",
-            "result": "NO_MATCH",
-            "points": 30,
-            "reason": "공정거래위원회 통신판매사업자 정보에서 일치하는 업체를 찾지 못했습니다.",
-        })
+            factors.append({
+                "code": "FTC_NO_MATCH",
+                "name": "공정위 업체 조회",
+                "result": "NO_MATCH",
+                "points": 40,
+                "reason": "입력한 사업자등록번호와 일치하는 업체를 찾지 못했습니다.",
+            })
+            return 40
 
-        return 30
+        # 법인명 검색 실패는 업체 특정 불가
+        return 0
 
-    # 여러 후보가 발견된 경우
+    # 여러 후보가 있으면 특정 업체를 판단하지 않음
     if match_status == "MULTIPLE_MATCHES":
-        checked_items.append("ftc_business_lookup")
         return 0
 
     official_info = ftc_result.get("official_info") or {}
@@ -97,6 +98,19 @@ def _check_ftc(ftc_result, factors, checked_items):
 
     if not isinstance(verification, dict):
         return 0
+
+    # 법인명 검색은 추가적인 신원 확인이 필요함
+    if search_method == "BUSINESS_NAME":
+        representative = verification.get("representative_name")
+        address = verification.get("business_address")
+
+        identity_confirmed = (
+            representative == "MATCH"
+            or address in ("MATCH", "PARTIAL_MATCH")
+        )
+
+        if not identity_confirmed:
+            return 0
 
     score = 0
 
@@ -128,6 +142,7 @@ def _check_ftc(ftc_result, factors, checked_items):
     )
 
     return score
+
 
 
 def calculate_risk(analyses: dict) -> dict:

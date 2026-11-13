@@ -3,6 +3,9 @@
 import re
 import unicodedata
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 from .client import (
     get_business_info,
@@ -45,11 +48,21 @@ def normalize_address(value: str | None) -> str:
         return ""
 
     value = unicodedata.normalize("NFKC", value)
-    value = re.sub(r"\s+", "", value)
+    value = re.sub(r"\s+", " ", value.strip())
     value = re.sub(r"[,.·]", "", value)
 
     return value.lower()
 
+def extract_region(value):
+    """
+    시도 + 시군구 추출
+    """
+    if not value:
+        return []
+
+    parts = normalize_address(value).split()
+
+    return parts[:2] if len(parts) >= 2 else parts
 
 def compare_name(input_name, official_name):
     if not input_name or not official_name:
@@ -87,13 +100,15 @@ def compare_representative(input_name, official_names):
     normalized_official_names = [
         normalize_person_name(name)
         for name in official_names
-        if name
+        if name and "*" not in name and "＊" not in name
     ]
+    if not normalized_official_names:
+        return "UNKNOWN"
 
     return (
         "MATCH"
         if normalized_input in normalized_official_names
-        else "UNKNOWN"
+        else "MISMATCH"
     )
 
 
@@ -103,14 +118,17 @@ def compare_address(input_address, official_address):
 
     input_address = normalize_address(input_address)
     official_address = normalize_address(official_address)
-
-    if not input_address or not official_address:
-        return "UNKNOWN"
-
+   
     if input_address == official_address:
         return "MATCH"
+    if input_address in official_address:
+            return "MATCH"
 
-    if input_address in official_address or official_address in input_address:
+    input_region = extract_region(input_address)
+    official_region = extract_region(official_address)
+
+    # 시도 + 시군구 비교
+    if input_region == official_region:
         return "PARTIAL_MATCH"
 
     return "MISMATCH"
@@ -140,7 +158,7 @@ def compare_candidate(business_info, candidate, search_method):
         address_status = "SKIPPED"
     else:
         address_status = compare_address(
-            business_info.get("business_address"),
+            business_info.get("address"),
             candidate.get("address"),
         )
 
@@ -155,7 +173,7 @@ def compare_candidate(business_info, candidate, search_method):
         ),
         "representative_name": compare_representative(
             business_info.get("representative_name"),
-            candidate.get("representative_names"),
+            candidate.get("representative_names",[]),
         ),
         "business_address": address_status,
     }
