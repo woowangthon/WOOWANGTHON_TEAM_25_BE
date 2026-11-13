@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 from external_api.nts.client import NtsApiError
 from external_api.nts.services import lookup_business as lookup_nts
 from external_api.ftc.services import lookup_business as lookup_ftc
-
+from risk_engine.services import calculate_risk
 
 
 def run_scan(url: str, business_info: dict | None = None) -> dict:
@@ -68,6 +68,13 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
             "error": "FTC_API_ERROR",
         }
 
+    analyses = {
+    "nts": nts_result,
+    "ftc": ftc_result,
+    "ai": {"status": "not_configured"},
+}
+
+    risk_result = calculate_risk(analyses)
     # 3. 최종 응답
     reply = {
         "scan_id": str(uuid4()),
@@ -77,16 +84,12 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
 
         "business_info": business_info,
 
-        "risk_score": None,
-        "verdict": "UNDETERMINED",
+    "risk_score": risk_result["risk_score"],
+    "verdict": risk_result["verdict"],
+    "risk_factors": risk_result["risk_factors"],
+    "checked_items": risk_result["checked_items"],
 
-        "analyses": {
-            "nts": nts_result,
-            "ftc": ftc_result,
-            "ai": {
-                "status": "not_configured",
-            },
-        },
+    "analyses": analyses,
     }
-
+    logger.debug("final report %s", reply)
     return reply

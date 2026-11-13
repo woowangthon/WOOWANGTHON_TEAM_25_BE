@@ -23,6 +23,15 @@ def normalize_name(value: str | None) -> str:
 
     return value.lower()
 
+def normalize_person_name(value: str | None) -> str:
+    if not value:
+        return ""
+
+    value = unicodedata.normalize("NFKC", value)
+    value = re.sub(r"\s+", "", value)
+
+    return value.lower()
+
 
 def normalize_number(value: str | None) -> str:
     if not value:
@@ -69,6 +78,24 @@ def compare_number(input_number, official_number):
         else "MISMATCH"
     )
 
+def compare_representative(input_name, official_names):
+    if not input_name or not official_names:
+        return "UNKNOWN"
+
+    normalized_input = normalize_person_name(input_name)
+
+    normalized_official_names = [
+        normalize_person_name(name)
+        for name in official_names
+        if name
+    ]
+
+    return (
+        "MATCH"
+        if normalized_input in normalized_official_names
+        else "UNKNOWN"
+    )
+
 
 def compare_address(input_address, official_address):
     if not input_address or not official_address:
@@ -108,20 +135,29 @@ def format_candidate(raw_data: dict) -> dict:
     }
 
 
-def compare_candidate(business_info: dict, candidate: dict) -> dict:
+def compare_candidate(business_info, candidate, search_method):
+    if search_method == "BUSINESS_NUMBER":
+        address_status = "SKIPPED"
+    else:
+        address_status = compare_address(
+            business_info.get("business_address"),
+            candidate.get("address"),
+        )
+
     return {
         "business_name": compare_name(
             business_info.get("business_name"),
-            candidate["business_name"],
+            candidate.get("business_name"),
         ),
         "business_number": compare_number(
             business_info.get("business_number"),
-            candidate["business_number"],
+            candidate.get("business_number"),
         ),
-        "business_address": compare_address(
-            business_info.get("business_address"),
-            candidate["address"],
+        "representative_name": compare_representative(
+            business_info.get("representative_name"),
+            candidate.get("representative_names"),
         ),
+        "business_address": address_status,
     }
 
 
@@ -211,6 +247,7 @@ def lookup_business(business_info: dict) -> dict:
             candidate_result["verification"] = compare_candidate(
                 business_info,
                 candidate,
+                search_method,
             )
             candidate_results.append(candidate_result)
 
@@ -227,6 +264,7 @@ def lookup_business(business_info: dict) -> dict:
     verification = compare_candidate(
         business_info,
         official,
+        search_method,
     )
 
     return {
