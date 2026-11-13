@@ -82,8 +82,13 @@ def _check_ftc(ftc_result, factors, checked_items):
                 "reason": "입력한 사업자등록번호와 일치하는 업체를 찾지 못했습니다.",
             })
             return 40
-
-        # 법인명 검색 실패는 업체 특정 불가
+        if search_method == "BUSINESS_NAME":
+            factors.append({
+                "code": "FTC_BUSINESS_NAME_NOT_FOUND",
+                "message": "공정거래위원회에서 해당 상호명을 찾을 수 없습니다.",
+                "points": 20,
+            })
+            return 20
         return 0
 
     # 여러 후보가 있으면 특정 업체를 판단하지 않음
@@ -178,6 +183,11 @@ def calculate_risk(analyses: dict) -> dict:
     )
 
     score = min(score, 100)
+    # 대표자 이름 안 맞으면 점수 올리기
+    representative_mismatch = any(
+    factor["code"] == "REPRESENTATIVE_MISMATCH"
+    for factor in factors
+    )
 
     # 검증 가능한 항목이 하나도 없으면 판정 보류
     if not checked_items:
@@ -186,7 +196,7 @@ def calculate_risk(analyses: dict) -> dict:
     elif score >= 50:
         verdict = "HIGH_RISK"
 
-    elif score >= 20:
+    elif score >= 20 or representative_mismatch:
         verdict = "CAUTION"
 
     else:

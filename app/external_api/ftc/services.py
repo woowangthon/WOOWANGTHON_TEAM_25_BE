@@ -53,6 +53,22 @@ def normalize_address(value: str | None) -> str:
 
     return value.lower()
 
+def normalize_search_name(value: str | None) -> str:
+    if not value:
+        return ""
+
+    value = unicodedata.normalize("NFKC", value)
+    value = value.strip()
+
+    # 법인 표기 통일
+    value = re.sub(r"^\(주\)", "주식회사", value)
+    value = re.sub(r"^㈜", "주식회사", value)
+
+    # 검색어의 공백 제거
+    value = re.sub(r"\s+", "", value)
+
+    return value
+
 def extract_region(value):
     """
     시도 + 시군구 추출
@@ -201,7 +217,8 @@ def lookup_business(business_info: dict) -> dict:
 
     # 2. 사업자번호가 없으면 법인명 검색
     elif business_name:
-        raw_items = get_business_info_by_name(business_name)
+        search_name = normalize_search_name(business_name)
+        raw_items = get_business_info_by_name(search_name)
         search_method = "BUSINESS_NAME"
 
     else:
