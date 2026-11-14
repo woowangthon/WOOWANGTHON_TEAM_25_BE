@@ -8,12 +8,24 @@ from external_api.nts.client import NtsApiError
 from external_api.nts.services import lookup_business as lookup_nts
 from external_api.ftc.services import lookup_business as lookup_ftc
 from risk_engine.services import calculate_risk
-
+from models import ScanCache
 
 def run_scan(url: str, business_info: dict | None = None) -> dict:
     """
+    db 기록에 히트 되는지 판단
+    """
+    cached = ScanCache.objects.filter(
+        url=url
+    ).first()
+
+    if cached:
+        return cached.result
+    
+    
+    """
     전체 URL 분석 프로세스를 실행한다.
     """
+    
     business_info = business_info or {}
 
     parsed = urlsplit(url)
@@ -88,4 +100,9 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
     "analyses": analyses,
     }
     logger.debug("final report %s", reply)
+    ScanCache.objects.create(
+        url=url,
+        result=reply
+    )
+
     return reply
