@@ -273,10 +273,31 @@ def lookup_business(business_info: dict) -> dict:
 
     else:
         logger.warning("FTC: SEARCH SKIPPED")
+
+
+
     # 1. 사업자번호 우선 검색
     if business_number:
         raw_items = get_business_info(business_number)
+
+        logger.warning(
+            "FTC RAW ITEMS TYPE=%s, VALUE=%s",
+            type(raw_items).__name__,
+            raw_items,
+        )
+        candidates = [
+            format_candidate(item)
+            for item in raw_items
+        ]
         search_method = "BUSINESS_NUMBER"
+        logger.warning("FTC CANDIDATES COUNT=%s", len(candidates))
+        if not candidates:
+            return {
+                "status": "completed",
+                "search_method": search_method,
+                "match_status": "NO_MATCH",
+                "candidates": [],
+            }
 
     # 2. 사업자번호가 없으면 법인명 검색
     elif business_name:

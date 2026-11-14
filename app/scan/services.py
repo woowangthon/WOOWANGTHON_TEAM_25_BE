@@ -103,7 +103,7 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
         )
 
     except Exception:
-
+        logger.exception("FTC API ERROR: %s", e)
         ftc_result = {
             "status": "error",
             "error": "FTC_API_ERROR",
