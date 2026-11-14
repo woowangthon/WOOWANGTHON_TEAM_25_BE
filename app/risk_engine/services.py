@@ -1,6 +1,7 @@
 
 # risk_engine/services.py
-
+# 백엔드 최대 50점 , ai 최대 50점
+# 0~30 lowrisk, 30~50 caution 50~ high risk
 def _add_factor(factors, checked_items, name, result, points, reason):
     """
     검증 결과에 따라 위험 점수를 추가한다.
@@ -25,7 +26,7 @@ def _add_factor(factors, checked_items, name, result, points, reason):
 
 def _check_nts(nts_result, factors, checked_items):
     """
-    국세청 사업자 상태 확인
+    국세청 사업자 상태 확인 사업자 번호로 조회합니다.
     """
     if not isinstance(nts_result, dict):
         return 0
@@ -50,10 +51,10 @@ def _check_nts(nts_result, factors, checked_items):
             "code": "ABNORMAL_BUSINESS_STATUS",
             "name": "사업자 상태",
             "result": "MISMATCH",
-            "points": 30,
+            "points": 50,
             "reason": f"사업자 상태가 정상적이지 않습니다: {status_text}",
         })
-        return 30
+        return 50
 
     return 0
 
@@ -78,17 +79,17 @@ def _check_ftc(ftc_result, factors, checked_items):
                 "code": "FTC_NO_MATCH",
                 "name": "공정위 업체 조회",
                 "result": "NO_MATCH",
-                "points": 40,
+                "points": 50,
                 "reason": "입력한 사업자등록번호와 일치하는 업체를 찾지 못했습니다.",
             })
-            return 40
+            return 50
         if search_method == "BUSINESS_NAME":
             factors.append({
                 "code": "FTC_BUSINESS_NAME_NOT_FOUND",
                 "message": "공정거래위원회에서 해당 상호명을 찾을 수 없습니다.",
-                "points": 20,
+                "points": 30,
             })
-            return 20
+            return 30
         return 0
 
     # 여러 후보가 있으면 특정 업체를 판단하지 않음
@@ -124,7 +125,7 @@ def _check_ftc(ftc_result, factors, checked_items):
         checked_items,
         "business_number",
         verification.get("business_number"),
-        40,
+        50,
         "사업자등록번호가 공식 정보와 일치하지 않습니다.",
     )
 
@@ -133,7 +134,7 @@ def _check_ftc(ftc_result, factors, checked_items):
         checked_items,
         "business_name",
         verification.get("business_name"),
-        25,
+        20,
         "상호명이 공식 정보와 일치하지 않습니다.",
     )
 

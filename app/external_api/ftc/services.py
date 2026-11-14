@@ -66,21 +66,11 @@ def normalize_search_name(value: str | None) -> str:
         return ""
 
     value = unicodedata.normalize("NFKC", value)
-    value = value.strip()
-
-    # 법인 표기 통일
-    value = re.sub(r"^\(주\)", "주식회사", value)
-    value = re.sub(r"^㈜", "주식회사", value)
-
-    # 검색어의 공백 제거
-    value = re.sub(r"\s+", "", value)
+    value = re.sub(r"\s+", "", value.strip())
 
     return value
 
 def extract_region(value):
-    """
-    시도 + 시군구 추출
-    """
     if not value:
         return []
 
@@ -156,22 +146,59 @@ def compare_address(input_address, official_address):
     if not input_address or not official_address:
         return "UNKNOWN"
 
-    input_address = normalize_address(input_address)
-    official_address = normalize_address(official_address)
-   
-    if input_address == official_address:
+    input_normalized = normalize_address(input_address)
+    official_normalized = normalize_address(official_address)
+
+    # 완전히 동일한 주소
+    if input_normalized.replace(" ", "") == official_normalized.replace(" ", ""):
         return "MATCH"
-    if input_address in official_address:
-            return "MATCH"
 
-    input_region = extract_region(input_address)
-    official_region = extract_region(official_address)
+    input_region = extract_region(input_normalized)
+    official_region = extract_region(official_normalized)
 
-    # 시도 + 시군구 비교
-    if input_region == official_region:
-        return "PARTIAL_MATCH"
+    # 시도 + 시군구가 다르면 불일치
+    if input_region != official_region:
+        return "MISMATCH"
 
-    return "MISMATCH"
+    # 시도 + 시군구까지만 동일
+    if len(input_region) < 2:
+        return "UNKNOWN"
+
+    # 동/읍/면까지 비교
+    input_parts = input_normalized.split()
+    official_parts = official_normalized.split()
+
+    if len(input_parts) >= 3 and len(official_parts) >= 3:
+        if input_parts[2] == official_parts[2]:
+            return "PARTIAL_MATCH"
+
+        return "MISMATCH"
+
+    return "PARTIAL_MATCH"
+
+# 법인며 변형 후 연속 조회
+def generate_name_variants(name: str) -> list[str]:
+    name = normalize_search_name(name)
+
+    if not name:
+        return []
+
+    # 앞뒤 법인 표기 제거
+    base_name = re.sub(
+        r"^(주식회사|\(주\))|"
+        r"(주식회사|\(주\))$",
+        "",
+        name,
+    )
+
+    if not base_name:
+        return []
+
+    return list(dict.fromkeys([
+        name,
+        f"주식회사{base_name}",
+        f"{base_name}(주)",
+    ]))
 
 
 def format_candidate(raw_data: dict) -> dict:
@@ -233,7 +260,19 @@ def lookup_business(business_info: dict) -> dict:
 
     if isinstance(business_address, str):
         business_address = business_address.strip()
+    # 디버깅 --
+    logger.warning("FTC LOOKUP ENTERED")
 
+    if business_number:
+        logger.warning("FTC: BUSINESS NUMBER SEARCH")
+
+    elif business_name:
+        logger.warning("FTC: BUSINESS NAME SEARCH")
+        search_names = generate_name_variants(business_name)
+        logger.warning("FTC SEARCH VARIANTS: %s", search_names)
+
+    else:
+        logger.warning("FTC: SEARCH SKIPPED")
     # 1. 사업자번호 우선 검색
     if business_number:
         raw_items = get_business_info(business_number)
@@ -241,22 +280,58 @@ def lookup_business(business_info: dict) -> dict:
 
     # 2. 사업자번호가 없으면 법인명 검색
     elif business_name:
-        search_name = normalize_search_name(business_name)
-        raw_items = get_business_info_by_name(search_name)
+        search_names = generate_name_variants(business_name)
+
+        candidates = []
+        seen = set()
+
         search_method = "BUSINESS_NAME"
 
-    else:
-        return {
-            "status": "skipped",
-            "search_method": None,
-            "match_status": "UNKNOWN",
-            "candidates": [],
-        }
+        for search_name in search_names:
+            raw_items = get_business_info_by_name(search_name)
 
-    candidates = [
-        format_candidate(item)
-        for item in raw_items
-    ]
+            for item in raw_items:
+                candidate = format_candidate(item)
+
+                key = candidate.get("business_number")
+
+                if not key:
+                    key = (
+                        candidate.get("business_name"),
+                        tuple(candidate.get("representative_names", [])),
+                        candidate.get("address"),
+                    )
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                candidates.append(candidate)
+
+        representative_matched = []
+
+        for candidate in candidates:
+            verification = compare_candidate(
+                business_info,
+                candidate,
+                search_method,
+            )
+
+            if verification["representative_name"] == "MATCH":
+                representative_matched.append(
+                    (candidate, verification)
+                )
+
+        if len(representative_matched) == 1:
+            official, verification = representative_matched[0]
+
+            return {
+                "status": "completed",
+                "search_method": search_method,
+                "match_status": "SINGLE_CANDIDATE",
+                "official_info": official,
+                "verification": verification,
+            }
 
     # 3. 검색 결과 없음
     if not candidates:
