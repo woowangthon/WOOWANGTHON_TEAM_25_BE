@@ -31,6 +31,14 @@ def normalize_person_name(value: str | None) -> str:
         return ""
 
     value = unicodedata.normalize("NFKC", value)
+    value = value.strip()
+
+    # CHANGSEUNGHWAN(장승환) -> 장승환
+    korean_name = re.search(r"\(([가-힣]+)\)", value)
+    if korean_name:
+        value = korean_name.group(1)
+
+    # 공백 제거 및 소문자 변환
     value = re.sub(r"\s+", "", value)
 
     return value.lower()
