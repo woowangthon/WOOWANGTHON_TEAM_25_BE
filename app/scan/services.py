@@ -55,13 +55,9 @@ def run_scan(url: str, business_info: dict | None = None) -> dict:
     # 2. FTC 조회
     # 사업자번호가 없어도 법인명이 있으면 조회 가능
     try:
-        logger.debug("this is business_info %s", business_info)
         ftc_result = lookup_ftc(business_info)
 
-        logger.debug("FTC lookup completed: %s", ftc_result)
-
     except Exception:
-        logger.exception("FTC lookup failed")
 
         ftc_result = {
             "status": "error",

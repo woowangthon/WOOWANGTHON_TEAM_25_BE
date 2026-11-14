@@ -18,7 +18,7 @@ def normalize_name(value: str | None) -> str:
         return ""
 
     value = unicodedata.normalize("NFKC", value)
-    value = re.sub(r"\s+", "", value)
+    value = re.sub(r"[\s,]", "", value)
 
     value = value.replace("(주)", "")
     value = value.replace("㈜", "")
@@ -111,22 +111,38 @@ def compare_representative(input_name, official_names):
     if not input_name or not official_names:
         return "UNKNOWN"
 
-    normalized_input = normalize_person_name(input_name)
+    if isinstance(input_name, str):
+        input_names = re.split(r"[,，、]", input_name)
+    else:
+        input_names = input_name
 
-    normalized_official_names = [
+    normalized_inputs = [
+        normalize_person_name(name)
+        for name in input_names
+        if name.strip()
+    ]
+
+    normalized_official = [
         normalize_person_name(name)
         for name in official_names
         if name and "*" not in name and "＊" not in name
     ]
-    if not normalized_official_names:
+
+    if not normalized_official or not normalized_inputs:
         return "UNKNOWN"
 
-    return (
-        "MATCH"
-        if normalized_input in normalized_official_names
-        else "MISMATCH"
+    matched_count = sum(
+        name in normalized_official
+        for name in normalized_inputs
     )
 
+    if matched_count == len(normalized_inputs):
+        return "MATCH"
+
+    if matched_count > 0:
+        return "PARTIAL_MATCH"
+
+    return "MISMATCH"
 
 def compare_address(input_address, official_address):
     if not input_address or not official_address:
